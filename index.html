@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maharashtra Village Boundaries</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 350px;
+            background: linear-gradient(145deg, #2d3748, #1a202c);
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+            overflow-y: auto;
+            border-right: 2px solid #4a5568;
+        }
+
+        .sidebar h1 {
+            color: #63b3ed;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            text-align: center;
+            border-bottom: 2px solid #4a5568;
+            padding-bottom: 10px;
+        }
+
+        /* Search Bar */
+        .search-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 12px 40px 12px 12px;
+            border: 2px solid #4a5568;
+            border-radius: 8px;
+            background: #2d3748;
+            color: #ffffff;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #63b3ed;
+            box-shadow: 0 0 10px rgba(99, 179, 237, 0.3);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #a0aec0;
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #2d3748;
+            border: 2px solid #4a5568;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .search-result-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #4a5568;
+            transition: background-color 0.2s;
+        }
+
+        .search-result-item:hover {
+            background: #4a5568;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Controls */
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #a0aec0;
+            font-weight: 500;
+        }
+
+        .dropdown {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #4a5568;
+            border-radius: 6px;
+            background: #2d3748;
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .dropdown:focus {
+            outline: none;
+            border-color: #63b3ed;
+        }
+
+        .dropdown:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Checkboxes */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .checkbox {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+
+        /* Village Info */
+        .village-info {
+            background: #2d3748;
+            border: 2px solid #4a5568;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .village-info h3 {
+            color: #63b3ed;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #4a5568;
+            padding-bottom: 5px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 5px 0;
+        }
+
+        .info-label {
+            color: #a0aec0;
+            font-weight: 500;
+        }
+
+        .info-value {
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        /* Loading Spinner */
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 3px solid #4a5568;
+            border-top: 3px solid #63b3ed;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Map Container */
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Custom Leaflet Controls */
+        .leaflet-control-layers {
+            background: rgba(45, 55, 72, 0.95) !important;
+            border: 2px solid #4a5568 !important;
+            border-radius: 8px !important;
+            color: #ffffff !important;
+        }
+
+        .leaflet-control-layers-expanded {
+            padding: 10px !important;
+        }
+
+        .leaflet-control-layers label {
+            color: #ffffff !important;
+        }
+
+        /* Custom Popup Styles */
+        .leaflet-popup-content-wrapper {
+            background: #2d3748 !important;
+            color: #ffffff !important;
+            border-radius: 8px !important;
+            box-shadow: 0 3px 14px rgba(0,0,0,0.4) !important;
+        }
+
+        .leaflet-popup-content {
+            margin: 15px !important;
+        }
+
+        .leaflet-popup-tip {
+            background: #2d3748 !important;
+        }
+
+        .popup-content h4 {
+            color: #63b3ed;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #4a5568;
+            padding-bottom: 5px;
+        }
+
+        .popup-item {
+            margin-bottom: 5px;
+        }
+
+        .popup-label {
+            font-weight: 600;
+            color: #a0aec0;
+        }
+
+        .popup-value {
+            color: #ffffff;
+            margin-left: 5px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 300px;
+            }
+            
+            .sidebar h1 {
+                font-size: 1.2rem;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: 40vh;
+            }
+            
+            .map-container {
+                height: 60vh;
+            }
+        }
+
+        /* Status Bar */
+        .status-bar {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(45, 55, 72, 0.9);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #a0aec0;
+            z-index: 1000;
+        }
+
+        /* Clear Search Button */
+        .clear-search {
+            position: absolute;
+            right: 35px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #a0aec0;
+            cursor: pointer;
+            display: none;
+        }
+
+        .clear-search:hover {
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h1><i class="fas fa-map-marked-alt"></i> Maharashtra Villages</h1>
+            
+            <!-- Search Bar -->
+            <div class="search-container">
+                <input type="text" id="villageSearch" class="search-box" placeholder="Search villages...">
+                <button class="clear-search" id="clearSearch"><i class="fas fa-times"></i></button>
+                <i class="fas fa-search search-icon"></i>
+                <div class="search-results" id="searchResults"></div>
+            </div>
+
+            <!-- District Selection -->
+            <div class="control-group">
+                <label class="control-label">Select District:</label>
+                <select id="districtSelect" class="dropdown">
+                    <option value="">Choose a district...</option>
+                    <option value="AHMADNAGAR">Ahmadnagar</option>
+                    <option value="AKOLA">Akola</option>
+                    <option value="AMRAVATI">Amravati</option>
+                    <option value="AURANGABAD">Aurangabad</option>
+                    <option value="BEED">Beed</option>
+                    <option value="BHANDARA">Bhandara</option>
+                    <option value="BULDHANA">Buldhana</option>
+                    <option value="CHANDRAPUR">Chandrapur</option>
+                    <option value="DHULE">Dhule</option>
+                    <option value="GADCHIROLI">Gadchiroli</option>
+                    <option value="GONDIA">Gondia</option>
+                    <option value="HINGOLI">Hingoli</option>
+                    <option value="JALGAON">Jalgaon</option>
+                    <option value="JALNA">Jalna</option>
+                    <option value="KOLHAPUR">Kolhapur</option>
+                    <option value="LATUR">Latur</option>
+                    <option value="MUMBAI CITY">Mumbai City</option>
+                    <option value="MUMBAI SUBURBAN">Mumbai Suburban</option>
+                    <option value="NAGPUR">Nagpur</option>
+                    <option value="NANDED">Nanded</option>
+                    <option value="NANDURBAR">Nandurbar</option>
+                    <option value="NASHIK">Nashik</option>
+                    <option value="OSMANABAD">Osmanabad</option>
+                    <option value="PALGHAR">Palghar</option>
+                    <option value="PARBHANI">Parbhani</option>
+                    <option value="PUNE">Pune</option>
+                    <option value="RAIGAD">Raigad</option>
+                    <option value="RATNAGIRI">Ratnagiri</option>
+                    <option value="SANGLI">Sangli</option>
+                    <option value="SATARA">Satara</option>
+                    <option value="SINDHUDURG">Sindhudurg</option>
+                    <option value="SOLAPUR">Solapur</option>
+                    <option value="THANE">Thane</option>
+                    <option value="WARDHA">Wardha</option>
+                    <option value="WASHIM">Washim</option>
+                    <option value="YAVATMAL">Yavatmal</option>
+                </select>
+            </div>
+
+            <!-- Display Options -->
+            <div class="control-group">
+                <label class="control-label">Display Options:</label>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="showTooltips" class="checkbox" checked>
+                    <label for="showTooltips">Show Tooltips on Hover</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="showPopups" class="checkbox" checked>
+                    <label for="showPopups">Show Popups on Click</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="showStateBoundary" class="checkbox" checked>
+                    <label for="showStateBoundary">Show State Boundary</label>
+                </div>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div class="loading-spinner" id="loadingSpinner">
+                <div class="spinner"></div>
+                <div>Loading district data...</div>
+            </div>
+
+            <!-- Village Information -->
+            <div class="village-info" id="villageInfo" style="display: none;">
+                <h3><i class="fas fa-info-circle"></i> Village Details</h3>
+                <div id="villageDetails"></div>
+            </div>
+        </div>
+
+        <!-- Map Container -->
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="status-bar" id="statusBar">
+                Ready - Select a district to view villages
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    
+    <script>
+        // Global variables
+        let map;
+        let currentDistrictLayer = null;
+        let stateBoundaryLayer = null;
+        let villageData = [];
+        let searchResults = [];
+        let highlightedVillage = null;
+
+        // Initialize map
+        function initMap() {
+            // Maharashtra approximate bounds
+            const maharashtraBounds = [
+                [15.6, 72.6], // Southwest
+                [22.0, 80.9]  // Northeast
+            ];
+
+            map = L.map('map', {
+                center: [19.0, 76.0],
+                zoom: 7,
+                maxBounds: maharashtraBounds,
+                maxBoundsViscosity: 1.0,
+                minZoom: 6,
+                maxZoom: 18
+            });
+
+            // Base layers
+            const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19,
+                attribution: 'Tiles © Esri'
+            });
+
+            const cartoDB = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors © CARTO'
+            });
+
+            const baseMaps = {
+                "OpenStreetMap": osm,
+                "Satellite": esri,
+                "Dark Theme": cartoDB
+            };
+
+            L.control.layers(baseMaps).addTo(map);
+
+            // Load Maharashtra state boundary
+            loadStateBoundary();
+        }
+
+        // Load Maharashtra state boundary
+        async function loadStateBoundary() {
+            try {
+                const response = await fetch('data/Maharashtra.json');
+                if (!response.ok) throw new Error('Failed to load state boundary');
+                
+                const maharashtraGeoJSON = await response.json();
+                
+                stateBoundaryLayer = L.geoJSON(maharashtraGeoJSON, {
+                    style: {
+                        color: '#ff6b6b',
+                        weight: 3,
+                        opacity: 0.8,
+                        fillOpacity: 0.1,
+                        dashArray: '10, 5'
+                    }
+                }).addTo(map);
+
+                // Fit map to Maharashtra boundary
+                map.fitBounds(stateBoundaryLayer.getBounds());
+                
+                updateStatus('Maharashtra boundary loaded');
+            } catch (error) {
+                console.error('Error loading state boundary:', error);
+                updateStatus('Error loading state boundary');
+            }
+        }
+
+        // Load district data with enhanced error handling and optimization
+        async function loadDistrictData(districtName) {
+            if (!districtName) return;
+
+            showLoading(true);
+            updateStatus(`Loading ${districtName} data...`);
+
+            try {
+                // Create AbortController for timeout handling
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+                console.log(`Attempting to load: data/${districtName}.json`);
+                
+                const response = await fetch(`data/${districtName}.json`, {
+                    signal: controller.signal,
+                    cache: 'force-cache' // Use browser cache if available
+                });
+                
+                clearTimeout(timeoutId);
+
+                console.log(`Response status: ${response.status}, OK: ${response.ok}`);
+                console.log(`Content-Type: ${response.headers.get('content-type')}`);
+                console.log(`Content-Length: ${response.headers.get('content-length')}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: Failed to load ${districtName} data. Check if file exists and is accessible.`);
+                }
+
+                // Check content type
+                const contentType = response.headers.get('content-type');
+                if (contentType && !contentType.includes('application/json') && !contentType.includes('text/plain')) {
+                    console.warn(`Unexpected content-type: ${contentType}`);
+                }
+
+                updateStatus(`Parsing ${districtName} data...`);
+                
+                const districtGeoJSON = await response.json();
+                
+                console.log(`Loaded GeoJSON with ${districtGeoJSON.features ? districtGeoJSON.features.length : 0} features`);
+
+                // Validate GeoJSON structure
+                if (!districtGeoJSON.features || !Array.isArray(districtGeoJSON.features)) {
+                    throw new Error(`Invalid GeoJSON structure in ${districtName}.json`);
+                }
+
+                if (districtGeoJSON.features.length === 0) {
+                    throw new Error(`No features found in ${districtName}.json`);
+                }
+
+                // Remove existing district layer
+                if (currentDistrictLayer) {
+                    map.removeLayer(currentDistrictLayer);
+                }
+
+                // Clear village data and search
+                villageData = [];
+                clearSearch();
+
+                updateStatus(`Rendering ${districtName} villages...`);
+
+                // Add new district layer with chunked processing for large datasets
+                if (districtGeoJSON.features.length > 1000) {
+                    // For large datasets, process in chunks
+                    currentDistrictLayer = L.layerGroup().addTo(map);
+                    await processLargeDataset(districtGeoJSON, districtName);
+                } else {
+                    // For smaller datasets, process normally
+                    currentDistrictLayer = L.geoJSON(districtGeoJSON, {
+                        style: getVillageStyle,
+                        onEachFeature: onEachVillage
+                    }).addTo(map);
+                }
+
+                // Store village data for search
+                districtGeoJSON.features.forEach(feature => {
+                    if (feature.properties) {
+                        villageData.push({
+                            name: feature.properties.VILLAGE || 'Unknown',
+                            tehsil: feature.properties.TEHSIL || 'Unknown',
+                            district: feature.properties.DISTRICT || districtName,
+                            feature: feature
+                        });
+                    }
+                });
+
+                // Fit map to district bounds
+                if (currentDistrictLayer.getBounds) {
+                    map.fitBounds(currentDistrictLayer.getBounds());
+                } else {
+                    // For layerGroup, calculate bounds manually
+                    const group = new L.featureGroup();
+                    currentDistrictLayer.eachLayer(layer => group.addLayer(layer));
+                    if (group.getLayers().length > 0) {
+                        map.fitBounds(group.getBounds());
+                    }
+                }
+                
+                updateStatus(`Successfully loaded ${villageData.length} villages from ${districtName}`);
+                showLoading(false);
+
+            } catch (error) {
+                console.error('Detailed error loading district data:', error);
+                
+                let errorMessage = `Error loading ${districtName} data: `;
+                
+                if (error.name === 'AbortError') {
+                    errorMessage += 'Request timed out (file too large or slow network)';
+                } else if (error.message.includes('HTTP')) {
+                    errorMessage += error.message;
+                } else if (error.message.includes('JSON')) {
+                    errorMessage += 'Invalid JSON format';
+                } else {
+                    errorMessage += error.message || 'Unknown error';
+                }
+                
+                updateStatus(errorMessage);
+                showLoading(false);
+                
+                // Show detailed error in console for debugging
+                console.log('Error details:', {
+                    district: districtName,
+                    error: error,
+                    message: error.message,
+                    stack: error.stack
+                });
+            }
+        }
+
+        // Process large datasets in chunks to prevent browser freezing
+        async function processLargeDataset(geoJSON, districtName) {
+            const chunkSize = 100;
+            const features = geoJSON.features;
+            
+            for (let i = 0; i < features.length; i += chunkSize) {
+                const chunk = features.slice(i, i + chunkSize);
+                const chunkGeoJSON = {
+                    type: 'FeatureCollection',
+                    features: chunk
+                };
+                
+                const chunkLayer = L.geoJSON(chunkGeoJSON, {
+                    style: getVillageStyle,
+                    onEachFeature: onEachVillage
+                });
+                
+                currentDistrictLayer.addLayer(chunkLayer);
+                
+                // Update progress
+                const progress = Math.min(100, Math.round(((i + chunkSize) / features.length) * 100));
+                updateStatus(`Rendering ${districtName} villages... ${progress}%`);
+                
+                // Allow browser to breathe
+                if (i + chunkSize < features.length) {
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
+            }
+        }
+
+        // Style function for villages
+        function getVillageStyle(feature) {
+            return {
+                fillColor: '#63b3ed',
+                weight: 1,
+                opacity: 0.8,
+                color: '#2d3748',
+                fillOpacity: 0.3
+            };
+        }
+
+        // Handle each village feature
+        function onEachVillage(feature, layer) {
+            const props = feature.properties;
+            
+            // Create popup content
+            const popupContent = `
+                <div class="popup-content">
+                    <h4><i class="fas fa-map-marker-alt"></i> ${props.VILLAGE || 'Unknown Village'}</h4>
+                    <div class="popup-item">
+                        <span class="popup-label">District:</span>
+                        <span class="popup-value">${props.DISTRICT || 'Unknown'}</span>
+                    </div>
+                    <div class="popup-item">
+                        <span class="popup-label">Tehsil:</span>
+                        <span class="popup-value">${props.TEHSIL || 'Unknown'}</span>
+                    </div>
+                    <div class="popup-item">
+                        <span class="popup-label">Area:</span>
+                        <span class="popup-value">${props.Shape_Area ? props.Shape_Area.toFixed(2) : 'Unknown'} sq units</span>
+                    </div>
+                    <div class="popup-item">
+                        <span class="popup-label">Object ID:</span>
+                        <span class="popup-value">${props.OBJECTID || props.OBJECTID_1 || 'Unknown'}</span>
+                    </div>
+                </div>
+            `;
+
+            // Bind popup
+            layer.bindPopup(popupContent);
+
+            // Bind tooltip
+            layer.bindTooltip(`
+                <strong>${props.VILLAGE || 'Unknown'}</strong><br>
+                Tehsil: ${props.TEHSIL || 'Unknown'}<br>
+                District: ${props.DISTRICT || 'Unknown'}
+            `, {
+                sticky: true,
+                direction: 'auto'
+            });
+
+            // Event listeners
+            layer.on({
+                mouseover: function(e) {
+                    if (document.getElementById('showTooltips').checked) {
+                        this.openTooltip();
+                    }
+                    // Highlight on hover
+                    e.target.setStyle({
+                        weight: 3,
+                        color: '#ffd700',
+                        fillOpacity: 0.6
+                    });
+                },
+                mouseout: function(e) {
+                    // Reset style unless it's the highlighted village
+                    if (highlightedVillage !== e.target) {
+                        e.target.setStyle(getVillageStyle());
+                    }
+                },
+                click: function(e) {
+                    if (document.getElementById('showPopups').checked) {
+                        this.openPopup();
+                    }
+                    // Show village info in sidebar
+                    showVillageInfo(props);
+                    // Highlight clicked village
+                    highlightVillage(e.target);
+                }
+            });
+        }
+
+        // Highlight a specific village
+        function highlightVillage(layer) {
+            // Reset previous highlight
+            if (highlightedVillage) {
+                highlightedVillage.setStyle(getVillageStyle());
+            }
+            
+            // Set new highlight
+            highlightedVillage = layer;
+            layer.setStyle({
+                weight: 4,
+                color: '#ff6b6b',
+                fillOpacity: 0.7,
+                fillColor: '#ffd700'
+            });
+        }
+
+        // Show village information in sidebar
+        function showVillageInfo(properties) {
+            const villageInfo = document.getElementById('villageInfo');
+            const villageDetails = document.getElementById('villageDetails');
+            
+            villageDetails.innerHTML = `
+                <div class="info-item">
+                    <span class="info-label">Village:</span>
+                    <span class="info-value">${properties.VILLAGE || 'Unknown'}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">District:</span>
+                    <span class="info-value">${properties.DISTRICT || 'Unknown'}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Tehsil:</span>
+                    <span class="info-value">${properties.TEHSIL || 'Unknown'}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">State:</span>
+                    <span class="info-value">${properties.STATE || 'Maharashtra'}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Object ID:</span>
+                    <span class="info-value">${properties.OBJECTID || properties.OBJECTID_1 || 'Unknown'}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Area:</span>
+                    <span class="info-value">${properties.Shape_Area ? properties.Shape_Area.toFixed(2) + ' sq units' : 'Unknown'}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Perimeter:</span>
+                    <span class="info-value">${properties.Shape_Leng ? properties.Shape_Leng.toFixed(2) + ' units' : 'Unknown'}</span>
+                </div>
+            `;
+            
+            villageInfo.style.display = 'block';
+        }
+
+        // Search functionality
+        function setupSearch() {
+            const searchInput = document.getElementById('villageSearch');
+            const searchResults = document.getElementById('searchResults');
+            const clearButton = document.getElementById('clearSearch');
+
+            searchInput.addEventListener('input', function(e) {
+                const query = e.target.value.trim().toLowerCase();
+                
+                if (query.length === 0) {
+                    hideSearchResults();
+                    clearButton.style.display = 'none';
+                    return;
+                }
+
+                clearButton.style.display = 'block';
+                
+                if (query.length < 2) {
+                    hideSearchResults();
+                    return;
+                }
+
+                // Filter villages based on search query
+                const filteredVillages = villageData.filter(village => 
+                    village.name.toLowerCase().includes(query) ||
+                    village.tehsil.toLowerCase().includes(query)
+                ).slice(0, 10); // Limit to 10 results
+
+                showSearchResults(filteredVillages);
+            });
+
+            clearButton.addEventListener('click', clearSearch);
+        }
+
+        // Show search results
+        function showSearchResults(results) {
+            const searchResults = document.getElementById('searchResults');
+            
+            if (results.length === 0) {
+                searchResults.innerHTML = '<div class="search-result-item">No villages found</div>';
+            } else {
+                searchResults.innerHTML = results.map(village => 
+                    `<div class="search-result-item" data-village="${village.name}" data-tehsil="${village.tehsil}">
+                        <strong>${village.name}</strong><br>
+                        <small>Tehsil: ${village.tehsil}, District: ${village.district}</small>
+                    </div>`
+                ).join('');
+
+                // Add click listeners to search results
+                searchResults.querySelectorAll('.search-result-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        const villageName = this.dataset.village;
+                        const tehsilName = this.dataset.tehsil;
+                        selectVillageFromSearch(villageName, tehsilName);
+                        hideSearchResults();
+                    });
+                });
+            }
+            
+            searchResults.style.display = 'block';
+        }
+
+        // Hide search results
+        function hideSearchResults() {
+            document.getElementById('searchResults').style.display = 'none';
+        }
+
+        // Clear search
+        function clearSearch() {
+            document.getElementById('villageSearch').value = '';
+            document.getElementById('clearSearch').style.display = 'none';
+            hideSearchResults();
+            
+            // Reset village highlight
+            if (highlightedVillage) {
+                highlightedVillage.setStyle(getVillageStyle());
+                highlightedVillage = null;
+            }
+        }
+
+        // Select village from search results
+        function selectVillageFromSearch(villageName, tehsilName) {
+            if (!currentDistrictLayer) return;
+
+            // Find the village layer
+            currentDistrictLayer.eachLayer(function(layer) {
+                const props = layer.feature.properties;
+                if (props.VILLAGE === villageName && props.TEHSIL === tehsilName) {
+                    // Zoom to village
+                    map.fitBounds(layer.getBounds(), { maxZoom: 14 });
+                    
+                    // Highlight village
+                    highlightVillage(layer);
+                    
+                    // Show village info
+                    showVillageInfo(props);
+                    
+                    // Show popup if enabled
+                    if (document.getElementById('showPopups').checked) {
+                        layer.openPopup();
+                    }
+                }
+            });
+
+            // Update search input
+            document.getElementById('villageSearch').value = villageName;
+        }
+
+        // Update status bar
+        function updateStatus(message) {
+            document.getElementById('statusBar').textContent = message;
+        }
+
+        // Show/hide loading spinner
+        function showLoading(show) {
+            document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+        }
+
+        // Event listeners
+        function setupEventListeners() {
+            // District selection
+            document.getElementById('districtSelect').addEventListener('change', function(e) {
+                loadDistrictData(e.target.value);
+            });
+
+            // Show/hide state boundary
+            document.getElementById('showStateBoundary').addEventListener('change', function(e) {
+                if (stateBoundaryLayer) {
+                    if (e.target.checked) {
+                        map.addLayer(stateBoundaryLayer);
+                    } else {
+                        map.removeLayer(stateBoundaryLayer);
+                    }
+                }
+            });
+
+            // Tooltip and popup toggles
+            document.getElementById('showTooltips').addEventListener('change', function(e) {
+                if (currentDistrictLayer) {
+                    currentDistrictLayer.eachLayer(function(layer) {
+                        if (e.target.checked) {
+                            layer.bindTooltip(layer.getTooltip().getContent(), {
+                                sticky: true,
+                                direction: 'auto'
+                            });
+                        } else {
+                            layer.closeTooltip();
+                        }
+                    });
+                }
+            });
+
+            // Close search results when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.search-container')) {
+                    hideSearchResults();
+                }
+            });
+        }
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            setupSearch();
+            setupEventListeners();
+            updateStatus('Application initialized - Select a district to begin');
+        });
+    </script>
+</body>
+</html>
